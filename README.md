@@ -5,6 +5,9 @@
 A small, reliable replacement for the Windows 11 Task Manager's *Performance* and *Processes* views,
 built to stay accurate and responsive even when every core is at 100%.
 
+**[⬇ Download ETaskManager.exe](https://github.com/kkilictepe/ETaskManager/releases/latest)**: a single exe, no install or .NET needed (Windows 10/11 x64).
+Windows SmartScreen may warn because the exe isn't code-signed; click **More info → Run anyway**.
+
 - CPU graph for the whole system and for **every logical processor** (60 s history, turns amber/red under load)
 - Memory: in use / available / cached / committed, with history graph
 - All processes, sortable by **CPU** or **Memory** (or any column), with a name/PID filter (Ctrl+F)
