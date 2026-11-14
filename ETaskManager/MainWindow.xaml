@@ -1,0 +1,151 @@
+<Window x:Class="ETaskManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:ETaskManager.UI"
+        Title="ETaskManager" Width="1200" Height="900" MinWidth="820" MinHeight="600"
+        WindowStartupLocation="CenterScreen" Icon="pack://application:,,,/Assets/app.ico"
+        Background="{StaticResource WindowBg}" Foreground="{StaticResource Fg}"
+        FontFamily="Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+
+    <Window.InputBindings>
+        <KeyBinding Key="F" Modifiers="Control" Command="{x:Static ApplicationCommands.Find}"/>
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static ApplicationCommands.Find}" Executed="OnFindCommand"/>
+    </Window.CommandBindings>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="190"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== Top: total CPU + memory ===== -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Style="{StaticResource Card}">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock x:Name="CpuTotalText" DockPanel.Dock="Right" FontSize="22" FontWeight="SemiBold" Text="—"/>
+                        <StackPanel>
+                            <TextBlock Text="CPU" FontSize="15" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="CpuDetailText" Style="{StaticResource Muted}" FontSize="12" Text="Measuring…"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <ui:UsageGraph x:Name="CpuTotalGraph" Title="Total, 60 s" LineColor="#3FA9F5"/>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock x:Name="MemTotalText" DockPanel.Dock="Right" FontSize="22" FontWeight="SemiBold" Text="—"/>
+                        <StackPanel>
+                            <TextBlock Text="Memory" FontSize="15" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="MemDetailText" Style="{StaticResource Muted}" FontSize="12" Text="Measuring…"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <ui:UsageGraph x:Name="MemGraph" Title="In use, 60 s" LineColor="#B07CFF"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== Per logical processor ===== -->
+        <StackPanel Grid.Row="1" Margin="0,12,0,0">
+            <ToggleButton x:Name="CoresToggle" IsChecked="True" HorizontalAlignment="Left" Padding="10,4" Margin="0,0,0,6"
+                          Content="Logical processors"/>
+            <ScrollViewer x:Name="CoresScroller" MaxHeight="250" VerticalScrollBarVisibility="Auto"
+                          Visibility="{Binding IsChecked, ElementName=CoresToggle, Converter={StaticResource BoolToVis}}">
+                <UniformGrid x:Name="CoreGrid"/>
+            </ScrollViewer>
+        </StackPanel>
+
+        <!-- ===== Toolbar ===== -->
+        <DockPanel Grid.Row="2" Margin="0,12,0,8" LastChildFill="False">
+            <TextBlock Text="Sort by" VerticalAlignment="Center" Margin="0,0,8,0" Style="{StaticResource Muted}"/>
+            <RadioButton x:Name="SortCpuButton" GroupName="Sort" Content="CPU" IsChecked="True" Click="OnSortCpu"/>
+            <RadioButton x:Name="SortMemButton" GroupName="Sort" Content="Memory" Click="OnSortMem"/>
+
+            <Grid Width="230" Margin="10,0,6,0">
+                <TextBox x:Name="SearchBox" TextChanged="OnSearchChanged" ToolTip="Filter by name or PID (Ctrl+F)"/>
+                <TextBlock x:Name="SearchHint" Text="Filter by name or PID…" IsHitTestVisible="False" Margin="9,0,0,0"
+                           VerticalAlignment="Center" Style="{StaticResource Muted}"/>
+            </Grid>
+
+            <ToggleButton x:Name="PauseButton" Content="Pause list" Click="OnPauseToggle"
+                          ToolTip="Freeze the process list (graphs keep updating)"/>
+
+            <TextBlock Text="Update" VerticalAlignment="Center" Margin="10,0,8,0" Style="{StaticResource Muted}"/>
+            <RadioButton GroupName="Rate" Content="0.5 s" Tag="500" Click="OnRateClick" Padding="8,5"/>
+            <RadioButton GroupName="Rate" Content="1 s" Tag="1000" IsChecked="True" Click="OnRateClick" Padding="8,5"/>
+            <RadioButton GroupName="Rate" Content="2 s" Tag="2000" Click="OnRateClick" Padding="8,5"/>
+            <RadioButton GroupName="Rate" Content="5 s" Tag="5000" Click="OnRateClick" Padding="8,5"/>
+
+            <Button x:Name="KillButton" DockPanel.Dock="Right" Style="{StaticResource DangerButton}" Margin="6,0,0,0"
+                    Content="End task" Click="OnKillClick" IsEnabled="False" ToolTip="Terminate the selected process (Del)"/>
+            <Button x:Name="KillTreeButton" DockPanel.Dock="Right" Content="End process tree" Margin="6,0,0,0"
+                    Click="OnKillTreeClick" IsEnabled="False" ToolTip="Terminate the selected process and all its children (Shift+Del)"/>
+        </DockPanel>
+
+        <!-- ===== Process list ===== -->
+        <Border Grid.Row="3" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="6">
+            <DataGrid x:Name="ProcGrid"
+                      AutoGenerateColumns="False" IsReadOnly="True" IsSynchronizedWithCurrentItem="False" SelectionMode="Single" SelectionUnit="FullRow"
+                      HeadersVisibility="Column" GridLinesVisibility="None" CanUserReorderColumns="True"
+                      CanUserResizeRows="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                      Background="{StaticResource CardBg}" RowBackground="{StaticResource CardBg}"
+                      AlternatingRowBackground="{StaticResource RowAlt}" BorderThickness="0"
+                      Foreground="{StaticResource Fg}" RowHeight="24"
+                      EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                      VirtualizingPanel.ScrollUnit="Item"
+                      Sorting="OnGridSorting" SelectionChanged="OnGridSelectionChanged"
+                      PreviewKeyDown="OnGridPreviewKeyDown" PreviewMouseRightButtonDown="OnGridPreviewRightDown">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="End task" InputGestureText="Del" Click="OnKillClick"/>
+                        <MenuItem Header="End process tree" InputGestureText="Shift+Del" Click="OnKillTreeClick"/>
+                        <Separator/>
+                        <MenuItem Header="Copy name" Click="OnCopyName"/>
+                        <MenuItem Header="Copy PID" Click="OnCopyPid"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" SortMemberPath="Name" Width="*" MinWidth="180"/>
+                    <DataGridTextColumn Header="PID" Binding="{Binding PidText}" SortMemberPath="Pid" Width="80"
+                                        ElementStyle="{StaticResource RightText}" HeaderStyle="{StaticResource RightHeader}"/>
+                    <DataGridTextColumn Binding="{Binding CpuPercent, StringFormat={}{0:0.0}}" SortMemberPath="Cpu" Width="85"
+                                        ElementStyle="{StaticResource RightText}" HeaderStyle="{StaticResource RightHeader}">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Text="CPU %" ToolTip="Share of total CPU time used during the last interval (all cores = 100%). This is time-based '% Processor Time', so the column adds up to the total. Task Manager instead shows frequency-scaled 'Processor Utility', which doesn't."/>
+                        </DataGridTextColumn.Header>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Memory (private)" Binding="{Binding PrivateWsMb, StringFormat={}{0:N1} MB}" SortMemberPath="PrivateWs" Width="140"
+                                        ElementStyle="{StaticResource RightText}" HeaderStyle="{StaticResource RightHeader}"/>
+                    <DataGridTextColumn Header="Commit" Binding="{Binding CommitMb, StringFormat={}{0:N1} MB}" SortMemberPath="Commit" Width="120"
+                                        ElementStyle="{StaticResource RightText}" HeaderStyle="{StaticResource RightHeader}"/>
+                    <DataGridTextColumn Header="CPU time" Binding="{Binding CpuTimeText}" SortMemberPath="CpuTime" Width="90"
+                                        ElementStyle="{StaticResource RightText}" HeaderStyle="{StaticResource RightHeader}"/>
+                    <DataGridTextColumn Header="Parent process" Binding="{Binding ParentText}" SortMemberPath="Parent" Width="200"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- ===== Status bar ===== -->
+        <DockPanel Grid.Row="4" Margin="0,8,0,0">
+            <Button x:Name="ElevateButton" DockPanel.Dock="Right" Content="Restart as administrator" Padding="10,3" Margin="8,0,0,0"
+                    Click="OnElevateClick"/>
+            <TextBlock x:Name="AdminText" DockPanel.Dock="Right" VerticalAlignment="Center" Style="{StaticResource Muted}"/>
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+        </DockPanel>
+    </Grid>
+</Window>
