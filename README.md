@@ -63,3 +63,7 @@ Set `ETM_DIAG=<path to log file>` before starting to log per-tick timings and th
 ## Limitations
 
 - Per-core data covers the current processor group (machines with ≤ 64 logical processors).
+
+## License
+
+[MIT](LICENSE): free to use, modify and redistribute.
