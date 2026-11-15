@@ -127,4 +127,14 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern uint WaitForSingleObject(SafeProcessHandle hHandle, uint dwMilliseconds);
+
+    [DllImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool QueryFullProcessImageName(SafeProcessHandle hProcess, uint dwFlags, char[] lpExeName, ref uint lpdwSize);
+
+    /// <summary>Returns a UNICODE_STRING followed by its buffer. Works with PROCESS_QUERY_LIMITED_INFORMATION (Win 8.1+).</summary>
+    public const int ProcessCommandLineInformation = 60;
+
+    [DllImport("ntdll.dll")]
+    public static extern int NtQueryInformationProcess(SafeProcessHandle hProcess, int processInformationClass, IntPtr processInformation, int length, out int returnLength);
 }

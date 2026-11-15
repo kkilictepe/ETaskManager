@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using ETaskManager.Mcp;
 using ETaskManager.Monitoring;
 using ETaskManager.UI;
 
@@ -12,6 +13,8 @@ namespace ETaskManager;
 public partial class MainWindow : Window
 {
     private readonly SystemSampler _sampler = new();
+    private readonly SnapshotHistory _history = new();
+    private readonly McpServer? _mcp;
     private readonly ProcessListModel _model = new();
     private UsageGraph[] _coreGraphs = Array.Empty<UsageGraph>();
 
@@ -40,14 +43,63 @@ public partial class MainWindow : Window
         ElevateButton.Visibility = admin ? Visibility.Collapsed : Visibility.Visible;
 
         _sampler.SnapshotReady += OnSnapshotFromSampler;
+        _sampler.SnapshotReady += _history.Add;
         _sampler.SampleFailed += ex => Dispatcher.BeginInvoke(() => ShowStatus("Sampling error: " + ex.Message));
+
+        if (McpServer.ConfiguredPort() is { } port)
+        {
+            _mcp = new McpServer(new ResourceTools(_history), port);
+            _mcp.StateChanged += () => Dispatcher.BeginInvoke(UpdateMcpButton);
+        }
+        UpdateMcpButton();
 
         Loaded += (_, _) =>
         {
             ApplySort(SortKey.Cpu, true);
             _sampler.Start();
+            _mcp?.Start();
         };
-        Closed += (_, _) => _sampler.Dispose();
+        Closed += (_, _) =>
+        {
+            _mcp?.Dispose();
+            _sampler.Dispose();
+        };
+    }
+
+    // ------------------------------------------------------------------ MCP server
+
+    private string McpAddCommand => $"claude mcp add --transport http etaskmanager {_mcp!.Url}";
+
+    private void UpdateMcpButton()
+    {
+        if (_mcp == null)
+        {
+            McpButton.Content = "MCP: off";
+            McpButton.ToolTip = "MCP server disabled (ETM_MCP=0).";
+            return;
+        }
+        switch (_mcp.State)
+        {
+            case McpState.Running:
+                McpButton.Content = $"MCP: localhost:{_mcp.Port}";
+                McpButton.ToolTip = $"MCP server for coding agents is running at {_mcp.Url}\nClick to copy:\n{McpAddCommand}";
+                break;
+            case McpState.Failed:
+                McpButton.Content = "MCP: unavailable";
+                McpButton.ToolTip = $"Could not listen on {_mcp.Url}: {_mcp.Error}\nIs another ETaskManager running? Set ETM_MCP_PORT to use a different port.";
+                break;
+            default:
+                McpButton.Content = "MCP: starting…";
+                McpButton.ToolTip = $"Starting the MCP server on {_mcp.Url}";
+                break;
+        }
+    }
+
+    private void OnMcpClick(object sender, RoutedEventArgs e)
+    {
+        if (_mcp == null) { ShowStatus("MCP server is disabled. Unset ETM_MCP to enable it."); return; }
+        if (_mcp.State == McpState.Failed) { ShowStatus($"MCP server unavailable: {_mcp.Error}"); return; }
+        Copy(McpAddCommand);
     }
 
     // ------------------------------------------------------------------ sampling → UI

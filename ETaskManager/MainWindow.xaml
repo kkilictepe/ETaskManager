@@ -144,6 +144,8 @@
         <DockPanel Grid.Row="4" Margin="0,8,0,0">
             <Button x:Name="ElevateButton" DockPanel.Dock="Right" Content="Restart as administrator" Padding="10,3" Margin="8,0,0,0"
                     Click="OnElevateClick"/>
+            <Button x:Name="McpButton" DockPanel.Dock="Right" Content="MCP: off" Padding="10,3" Margin="8,0,0,0"
+                    Click="OnMcpClick" ToolTip="MCP server for coding agents. Click to copy the command that connects Claude Code."/>
             <TextBlock x:Name="AdminText" DockPanel.Dock="Right" VerticalAlignment="Center" Style="{StaticResource Muted}"/>
             <TextBlock x:Name="StatusText" VerticalAlignment="Center" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
         </DockPanel>
